@@ -23,6 +23,7 @@ public class DrawOctree : MonoBehaviour
     private void OnDrawGizmos()
     {
         if (!draw) return;
+
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
             DestroyImmediate(transform.GetChild(i).gameObject);
@@ -38,7 +39,7 @@ public class DrawOctree : MonoBehaviour
         }
         Vector3 size = max - min;
 
-        Octree tree = new Octree((min + max) / 2f, Mathf.Max(size.x, Mathf.Max(size.y, size.z)), maxDepth);
+        Octree tree = new Octree((min + max) / 2f, Mathf.Max(size.x, Mathf.Max(size.y, size.z)), maxDepth, op == operation.Intersection);
 
         tree.Build(spheres);
         List<Cube> cubes = tree.Draw();

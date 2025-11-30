@@ -1,5 +1,4 @@
-﻿using NUnit.Framework;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -17,12 +16,14 @@ public class Octree
     private bool filled;
     private Vector3 center;
     private float size;
+    private bool intersectionOperation; // true => intersection, false => union
 
-    public Octree(Vector3 center, float size, int maxDepth)
+    public Octree(Vector3 center, float size, int maxDepth, bool intersectionOperation = false)
     {
         this.center = center;
         this.size = size;
         this.filled = false;
+        this.intersectionOperation = intersectionOperation;
 
         if (maxDepth <= 0)
         {
@@ -45,7 +46,7 @@ public class Octree
                     ((i & 4) == 0 ? -1 : 1) * quarter
                 );
 
-                nodes[i] = new Octree(center + offset, half, maxDepth - 1);
+                nodes[i] = new Octree(center + offset, half, maxDepth - 1, intersectionOperation);
             }
         }
     }
@@ -109,51 +110,106 @@ public class Octree
 
     public void Build(List<Sphere> spheres)
     {
-        bool fullyInsideAny = false;
-        bool fullyOutsideAll = true;
-
-        foreach (var sphere in spheres)
+        if (!intersectionOperation)
         {
-            int rel = SphereCubeRelation(sphere.center, sphere.radius);
-            if (rel == 1) fullyInsideAny = true;
-            if (rel != 0) fullyOutsideAll = false;
-        }
+            // Union semantics (existing behavior)
+            bool fullyInsideAny = false;
+            bool fullyOutsideAll = true;
 
-        if (fullyOutsideAll)
-        {
-            isLeaf = true;
-            filled = false;
-            nodes = null;
-            return;
-        }
-
-        if (fullyInsideAny)
-        {
-            isLeaf = true;
-            filled = true;
-            nodes = null;
-            return;
-        }
-
-        // relation == 2 → partiellement dedans
-        if (nodes != null)
-        {
-            foreach (var child in nodes)
-                child.Build(spheres);
-
-            bool allLeaves = true;
-            bool allFilled = true;
-            foreach (var child in nodes)
+            foreach (var sphere in spheres)
             {
-                if (!child.isLeaf) allLeaves = false;
-                if (!child.filled) allFilled = false;
+                int rel = SphereCubeRelation(sphere.center, sphere.radius);
+                if (rel == 1) fullyInsideAny = true;
+                if (rel != 0) fullyOutsideAll = false;
             }
 
-            if (allLeaves && allFilled)
+            if (fullyOutsideAll)
+            {
+                isLeaf = true;
+                filled = false;
+                nodes = null;
+                return;
+            }
+
+            if (fullyInsideAny)
             {
                 isLeaf = true;
                 filled = true;
                 nodes = null;
+                return;
+            }
+
+            // partiellement dedans
+            if (nodes != null)
+            {
+                foreach (var child in nodes)
+                    child.Build(spheres);
+
+                bool allLeaves = true;
+                bool allFilled = true;
+                foreach (var child in nodes)
+                {
+                    if (!child.isLeaf) allLeaves = false;
+                    if (!child.filled) allFilled = false;
+                }
+
+                if (allLeaves && allFilled)
+                {
+                    isLeaf = true;
+                    filled = true;
+                    nodes = null;
+                }
+            }
+        }
+        else
+        {
+            // Intersection semantics
+            bool fullyOutsideAny = false;
+            bool fullyInsideAll = true;
+
+            foreach (var sphere in spheres)
+            {
+                int rel = SphereCubeRelation(sphere.center, sphere.radius);
+                if (rel == 0) fullyOutsideAny = true;
+                if (rel != 1) fullyInsideAll = false;
+            }
+
+            if (fullyOutsideAny)
+            {
+                isLeaf = true;
+                filled = false;
+                nodes = null;
+                return;
+            }
+
+            if (fullyInsideAll)
+            {
+                isLeaf = true;
+                filled = true;
+                nodes = null;
+                return;
+            }
+
+            // partiellement dedans
+            if (nodes != null)
+            {
+                foreach (var child in nodes)
+                    child.Build(spheres);
+
+                bool allLeaves = true;
+                bool allFilled = true;
+                foreach (var child in nodes)
+                {
+                    if (!child.isLeaf) allLeaves = false;
+                    if (!child.filled) allFilled = false;
+                }
+
+                if (allLeaves && allFilled)
+                {
+                    isLeaf = true;
+                    filled = true;
+                    nodes = null;
+                }
             }
         }
     }
