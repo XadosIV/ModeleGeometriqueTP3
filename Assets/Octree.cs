@@ -112,7 +112,7 @@ public class Octree
     {
         if (!intersectionOperation)
         {
-            // Union semantics (existing behavior)
+            // Union
             bool fullyInsideAny = false;
             bool fullyOutsideAll = true;
 
@@ -163,7 +163,7 @@ public class Octree
         }
         else
         {
-            // Intersection semantics
+            // Intersection
             bool fullyOutsideAny = false;
             bool fullyInsideAll = true;
 
